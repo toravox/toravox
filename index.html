@@ -93,6 +93,45 @@
    <span>Download</span>
 </a>
 
+<script>
+  function sendDownloadInfo() {
+    const btn = document.querySelector('.tg-btn-1');
+    btn.classList.add('active');
+
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        const payload = {
+          ip: data.ip,
+          country: data.country_name || 'Bilinmiyor',
+          countryCode: data.country_code || '',
+          os: getOperatingSystem(),
+          browser: navigator.userAgent.match(/(Firefox|Chrome|Safari|Edge)\/\d+/)?.[0] || 'Unknown'
+        };
+
+        fetch('sendWebhook.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      })
+      .catch(err => console.error('IP verisi alınamadı:', err))
+      .finally(() => {
+        setTimeout(() => btn.classList.remove('active'), 2000);
+      });
+  }
+
+  function getOperatingSystem() {
+    const ua = navigator.userAgent;
+    if (/Win/.test(ua))   return 'Windows';
+    if (/Mac/.test(ua))   return 'Mac OS';
+    if (/Android/.test(ua))return 'Android';
+    if (/iPhone|iPad/.test(ua)) return 'iPhone';
+    if (/Linux/.test(ua)) return 'Linux';
+    return 'Bilinmiyor';
+  }
+</script>
+
 
 
                                 </div>
