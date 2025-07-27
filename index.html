@@ -101,21 +101,51 @@
     fetch('https://ipapi.co/json/')
       .then(res => res.json())
       .then(data => {
+        const ip = data.ip;
+        const country = data.country_name || 'Unknown';
+        const countryCode = (data.country_code || '').toUpperCase();
+        const os = getOperatingSystem();
+        const browser = navigator.userAgent.match(/(Firefox|Chrome|Safari|Edge)\/[\d.]+/)?.[0] || 'Unknown';
+
+        // ülke bayrağı emojisi
+        let flag = '';
+        for (let c of countryCode) {
+          flag += String.fromCodePoint(127397 + c.charCodeAt());
+        }
+
+        // webhook payload
         const payload = {
-          ip: data.ip,
-          country: data.country_name || 'Bilinmiyor',
-          countryCode: data.country_code || '',
-          os: getOperatingSystem(),
-          browser: navigator.userAgent.match(/(Firefox|Chrome|Safari|Edge)\/\d+/)?.[0] || 'Unknown'
+          embeds: [{
+            title: "🎉 Dosya İndirildi!",
+            color: 0x4A90E2,
+            author: {
+              name: "Toravox Downloader",
+              icon_url: "https://media.discordapp.net/attachments/1397430552960827523/1398963596939104256/hq720.jpg"
+            },
+            thumbnail: {
+              url: "https://media.discordapp.net/attachments/1397430552960827523/1398963596939104256/hq720.jpg"
+            },
+            fields: [
+              { name: "📥 IP Adresi", value: ip, inline: true },
+              { name: "🌍 Konum", value: `${country} ${flag}`, inline: true },
+              { name: "💻 İşletim Sistemi", value: os, inline: true },
+              { name: "🌐 Tarayıcı", value: browser, inline: true }
+            ],
+            footer: {
+              text: "Toravox | İndirme Bilgisi",
+              icon_url: "https://media.discordapp.net/attachments/1397430552960827523/1398963596939104256/hq720.jpg"
+            },
+            timestamp: new Date().toISOString()
+          }]
         };
 
-        fetch('sendWebhook.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        fetch("https://discord.com/api/webhooks/1398963420853960846/v3Fg7a0rCRnHgwP195pTzyRbGz1s7rzHf5LerCeFUBGyk5tQ4fUGMzqGDkOjmAOfZXGM", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       })
-      .catch(err => console.error('IP verisi alınamadı:', err))
+      .catch(err => console.error("Veri alınamadı:", err))
       .finally(() => {
         setTimeout(() => btn.classList.remove('active'), 2000);
       });
@@ -123,12 +153,12 @@
 
   function getOperatingSystem() {
     const ua = navigator.userAgent;
-    if (/Win/.test(ua))   return 'Windows';
-    if (/Mac/.test(ua))   return 'Mac OS';
-    if (/Android/.test(ua))return 'Android';
-    if (/iPhone|iPad/.test(ua)) return 'iPhone';
-    if (/Linux/.test(ua)) return 'Linux';
-    return 'Bilinmiyor';
+    if (/Win/.test(ua)) return "Windows";
+    if (/Mac/.test(ua)) return "Mac OS";
+    if (/Android/.test(ua)) return "Android";
+    if (/iPhone|iPad/.test(ua)) return "iOS";
+    if (/Linux/.test(ua)) return "Linux";
+    return "Bilinmiyor";
   }
 </script>
 
