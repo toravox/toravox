@@ -66,10 +66,198 @@
                 alert("Clipboard API not supported. Please copy manually: TV2025");
             }
         }
+
+        // New popup functions
+        function showDownloadPopup() {
+            const popup = document.getElementById('downloadPopup');
+            const overlay = document.getElementById('popupOverlay');
+            overlay.style.display = 'flex';
+            setTimeout(() => {
+                overlay.classList.add('show');
+                popup.classList.add('show');
+            }, 10);
+        }
+
+        function closePopup() {
+            const popup = document.getElementById('downloadPopup');
+            const overlay = document.getElementById('popupOverlay');
+            popup.classList.remove('show');
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                // Reset form
+                document.getElementById('inviteInput').value = '';
+                document.getElementById('inviteStep').style.display = 'block';
+                document.getElementById('downloadStep').style.display = 'none';
+            }, 300);
+        }
+
+        function proceedToDownload() {
+            const inviteCode = document.getElementById('inviteInput').value.trim();
+            if (!inviteCode) {
+                alert('Please enter who invited you!');
+                return;
+            }
+            
+            // Store invite code for later use
+            window.currentInviteCode = inviteCode;
+            
+            // Hide invite step and show download options
+            document.getElementById('inviteStep').style.display = 'none';
+            document.getElementById('downloadStep').style.display = 'block';
+        }
+
+        function downloadVersion(version, downloadUrl) {
+            const inviteCode = window.currentInviteCode || 'Unknown';
+            
+            // Start download
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Send webhook data
+            sendDownloadWebhook(version, inviteCode);
+            
+            // Show thank you message
+            showThankYouMessage();
+        }
+
+        function sendDownloadWebhook(version, inviteCode) {
+            fetch('https://ipapi.co/json/')
+                .then(res => res.json())
+                .then(data => {
+                    const ip = data.ip;
+                    const country = data.country_name || 'Unknown';
+                    const countryCode = (data.country_code || '').toUpperCase();
+                    const os = getOperatingSystem();
+                    const browser = navigator.userAgent.match(/(Firefox|Chrome|Safari|Edge)\/[\d.]+/)?.[0] || 'Unknown';
+
+                    // Country flag emoji
+                    let flag = '';
+                    for (let c of countryCode) {
+                        flag += String.fromCodePoint(127397 + c.charCodeAt());
+                    }
+
+                    // Webhook payload with invite code
+                    const payload = {
+                        embeds: [{
+                            title: "🎉 Dosya İndirildi!",
+                            color: version === 'new' ? 0x4A90E2 : 0xE24A90,
+                            author: {
+                                name: "Toravox Downloader",
+                            },
+                            fields: [
+                                { name: "📥 IP Adresi", value: ip, inline: true },
+                                { name: "🌍 Konum", value: `${country} ${flag}`, inline: true },
+                                { name: "💻 İşletim Sistemi", value: os, inline: true },
+                                { name: "🌐 Tarayıcı", value: browser, inline: true },
+                                { name: "📦 Versiyon", value: version === 'new' ? 'Yeni Versiyon' : 'Eski Versiyon', inline: true },
+                                { name: "👤 Davet Eden", value: inviteCode, inline: true }
+                            ],
+                            footer: {
+                                text: "Toravox | İndirme Bilgisi",
+                            },
+                            timestamp: new Date().toISOString()
+                        }]
+                    };
+
+                    fetch("https://discord.com/api/webhooks/1398963420853960846/v3Fg7a0rCRnHgwP195pTzyRbGz1s7rzHf5LerCeFUBGyk5tQ4fUGMzqGDkOjmAOfZXGM", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                })
+                .catch(err => console.error("Veri alınamadı:", err));
+        }
+
+        function showThankYouMessage() {
+            document.getElementById('downloadStep').style.display = 'none';
+            document.getElementById('thankYouStep').style.display = 'block';
+            
+            // Auto close after 3 seconds
+            setTimeout(() => {
+                closePopup();
+                // Reset to invite step for next time
+                document.getElementById('thankYouStep').style.display = 'none';
+                document.getElementById('inviteStep').style.display = 'block';
+            }, 3000);
+        }
+
+        function getOperatingSystem() {
+            const ua = navigator.userAgent;
+            if (/Win/.test(ua)) return "Windows";
+            if (/Mac/.test(ua)) return "Mac OS";
+            if (/Android/.test(ua)) return "Android";
+            if (/iPhone|iPad/.test(ua)) return "iOS";
+            if (/Linux/.test(ua)) return "Linux";
+            return "Bilinmiyor";
+        }
+
+        // Handle Enter key in invite input
+        document.addEventListener('DOMContentLoaded', function() {
+            const inviteInput = document.getElementById('inviteInput');
+            if (inviteInput) {
+                inviteInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        proceedToDownload();
+                    }
+                });
+            }
+        });
     </script>
 </head>
 
 <body>
+    <!-- Download Popup Overlay -->
+    <div id="popupOverlay" class="popup-overlay">
+        <div id="downloadPopup" class="download-popup">
+            <!-- Step 1: Invite Code -->
+            <div id="inviteStep" class="popup-step">
+                <div class="popup-header">
+                    <h3>🎮 Welcome to Toravox!</h3>
+                    <button class="close-btn" onclick="closePopup()">×</button>
+                </div>
+                <div class="popup-content">
+                    <p>Who invited you to download Toravox?</p>
+                    <input type="text" id="inviteInput" placeholder="Enter the name of who invited you..." />
+                    <button class="popup-btn primary" onclick="proceedToDownload()">Continue</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Download Options -->
+            <div id="downloadStep" class="popup-step" style="display: none;">
+                <div class="popup-header">
+                    <h3>📦 Choose Your Version</h3>
+                    <button class="close-btn" onclick="closePopup()">×</button>
+                </div>
+                <div class="popup-content">
+                    <p>Select which version you'd like to download:</p>
+                    <div class="download-options">
+                        <button class="popup-btn primary" onclick="downloadVersion('new', 'https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1')">
+                            🆕 Download New Version
+                        </button>
+                        <button class="popup-btn secondary" onclick="downloadVersion('old', 'https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1')">
+                            📦 Download Old Version
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Thank You -->
+            <div id="thankYouStep" class="popup-step" style="display: none;">
+                <div class="popup-content thank-you">
+                    <div class="thank-you-icon">🎉</div>
+                    <h3>Thank You!</h3>
+                    <p>Your download has started successfully.</p>
+                    <p>Enjoy playing Toravox!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <main class="main--area">
         <section class="slider__area slider__bg" data-background="assets/img/slider/slider_bg.html">
             <div class="slider-activee">
@@ -86,79 +274,10 @@
                                         Toravox is a Metroidvania focused on fast-paced combat, exploration, and an engaging story. It features a brand new protagonist and a large interconnected world. The Queen of Light must stop the destruction of existence by challenging the Supreme God Chaos while seeking the location of their nemesis.
                                     </p>
                                     <div class="slider__btn wow fadeInUp" data-wow-delay="1.2s">
-                                        <a href="https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1"
-   class="tg-btn-1"
-   target="_blank"
-   onclick="sendDownloadInfo()">
-   <span>Download</span>
-</a>
-
-<script>
-  function sendDownloadInfo() {
-    const btn = document.querySelector('.tg-btn-1');
-    btn.classList.add('active');
-
-    fetch('https://ipapi.co/json/')
-      .then(res => res.json())
-      .then(data => {
-        const ip = data.ip;
-        const country = data.country_name || 'Unknown';
-        const countryCode = (data.country_code || '').toUpperCase();
-        const os = getOperatingSystem();
-        const browser = navigator.userAgent.match(/(Firefox|Chrome|Safari|Edge)\/[\d.]+/)?.[0] || 'Unknown';
-
-        // ülke bayrağı emojisi
-        let flag = '';
-        for (let c of countryCode) {
-          flag += String.fromCodePoint(127397 + c.charCodeAt());
-        }
-
-        // webhook payload
-        const payload = {
-          embeds: [{
-            title: "🎉 Dosya İndirildi!",
-            color: 0x4A90E2,
-            author: {
-              name: "Toravox Downloader",
-            },
-            fields: [
-              { name: "📥 IP Adresi", value: ip, inline: true },
-              { name: "🌍 Konum", value: `${country} ${flag}`, inline: true },
-              { name: "💻 İşletim Sistemi", value: os, inline: true },
-              { name: "🌐 Tarayıcı", value: browser, inline: true }
-            ],
-            footer: {
-              text: "Toravox | İndirme Bilgisi",
-            },
-            timestamp: new Date().toISOString()
-          }]
-        };
-
-        fetch("https://discord.com/api/webhooks/1398963420853960846/v3Fg7a0rCRnHgwP195pTzyRbGz1s7rzHf5LerCeFUBGyk5tQ4fUGMzqGDkOjmAOfZXGM", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      })
-      .catch(err => console.error("Veri alınamadı:", err))
-      .finally(() => {
-        setTimeout(() => btn.classList.remove('active'), 2000);
-      });
-  }
-
-  function getOperatingSystem() {
-    const ua = navigator.userAgent;
-    if (/Win/.test(ua)) return "Windows";
-    if (/Mac/.test(ua)) return "Mac OS";
-    if (/Android/.test(ua)) return "Android";
-    if (/iPhone|iPad/.test(ua)) return "iOS";
-    if (/Linux/.test(ua)) return "Linux";
-    return "Bilinmiyor";
-  }
-</script>
-
-
-
+                                        <a href="#" class="tg-btn-1" onclick="event.preventDefault(); showDownloadPopup();">
+                                            <span>Download</span>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-xxl-6 col-xl-5 col-lg-6">
@@ -298,13 +417,13 @@
                             <div class="faq__item">
                                 <div class="faq__question" onclick="toggleAnswer(this)" style="cursor: pointer; padding: 15px; background: #2A2A2A; border-radius: 8px; margin-bottom: 10px; transition: background 0.3s ease;">
                                     <h4 style="font-size: 18px; font-weight: 600; color: #f5a623; margin: 0; display: flex; justify-content: space-between; align-items: center;">
-                                        I’m getting a Windows SmartScreen warning, is this file safe?
+                                        I'm getting a Windows SmartScreen warning, is this file safe?
                                         <span class="faq__toggle" style="font-size: 20px; color: #f5a623;">+</span>
                                     </h4>
                                 </div>
                                 <div class="faq__answer" style="display: none; padding: 15px; background: #333; border-radius: 8px; margin-bottom: 10px;">
                                     <p style="font-size: 16px; line-height: 1.8; color: #E0E0E0; margin: 0;">
-                                        This is a default security feature that pops up when a file isn’t digitally signed or comes from an unrecognized source. I can assure you this file is completely safe. You can click "More Info" and "Run Anyway".
+                                        This is a default security feature that pops up when a file isn't digitally signed or comes from an unrecognized source. I can assure you this file is completely safe. You can click "More Info" and "Run Anyway".
                                     </p>
                                     <img src="images/smartscreen.png" alt="SmartScreen Warning" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 15px;">
                                 </div>
@@ -331,7 +450,7 @@
                                 </div>
                                 <div class="faq__answer" style="display: none; padding: 15px; background: #333; border-radius: 8px; margin-bottom: 10px;">
                                     <p style="font-size: 16px; line-height: 1.8; color: #E0E0E0; margin: 0;">
-                                        Currently, Toravox is only available for Windows PCs. We’re working on Mac and Linux support, but no release date has been set yet.
+                                        Currently, Toravox is only available for Windows PCs. We're working on Mac and Linux support, but no release date has been set yet.
                                     </p>
                                 </div>
                             </div>
@@ -357,7 +476,7 @@
                                 </div>
                                 <div class="faq__answer" style="display: none; padding: 15px; background: #333; border-radius: 8px; margin-bottom: 10px;">
                                     <p style="font-size: 16px; line-height: 1.8; color: #E0E0E0; margin: 0;">
-                                        You can reach out to our support team via email at support@Toravox.com We’re here to help with any issues you might face!
+                                        You can reach out to our support team via email at support@Toravox.com We're here to help with any issues you might face!
                                     </p>
                                 </div>
                             </div>
@@ -420,7 +539,7 @@
     <ol style="line-height: 1.6; padding-left: 20px; font-size: 14px; color: #E0E0E0;">
         <li style="margin-bottom: 15px;">
             <strong>Download and Extract the Game Files</strong><br>
-            Download the game file and extract the game file. You’ll see files like <code>Toravox.exe</code> and <code>UnityPlayer.dll</code>.
+            Download the game file and extract the game file. You'll see files like <code>Toravox.exe</code> and <code>UnityPlayer.dll</code>.
         </li>
         <li style="margin-bottom: 15px;">
             <strong>Enter the Password (If Prompted)</strong><br>
@@ -433,8 +552,190 @@
     </ol>
 </div>
 
-    <!-- Styles for Install Box and FAQ Section -->
+    <!-- Styles for Install Box, FAQ Section, and Popup -->
     <style>
+        /* Popup Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .popup-overlay.show {
+            opacity: 1;
+        }
+
+        .download-popup {
+            background: linear-gradient(145deg, #1A1A1A, #2A2A2A);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+            border: 3px solid #f5a623;
+            width: 90%;
+            max-width: 500px;
+            font-family: 'Poppins', sans-serif;
+            transform: scale(0.7);
+            transition: transform 0.3s ease;
+            overflow: hidden;
+        }
+
+        .download-popup.show {
+            transform: scale(1);
+        }
+
+        .popup-header {
+            background: #2A2A2A;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f5a623;
+        }
+
+        .popup-header h3 {
+            margin: 0;
+            color: #f5a623;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #f5a623;
+            font-size: 30px;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background-color: rgba(245, 166, 35, 0.2);
+        }
+
+        .popup-content {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .popup-content p {
+            color: #E0E0E0;
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .popup-content input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #444;
+            border-radius: 10px;
+            background: #333;
+            color: #E0E0E0;
+            font-size: 16px;
+            margin-bottom: 20px;
+            font-family: 'Poppins', sans-serif;
+            transition: border-color 0.3s ease;
+        }
+
+        .popup-content input:focus {
+            outline: none;
+            border-color: #f5a623;
+        }
+
+        .popup-content input::placeholder {
+            color: #888;
+        }
+
+        .popup-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            margin: 5px;
+            min-width: 200px;
+        }
+
+        .popup-btn.primary {
+            background: linear-gradient(45deg, #f5a623, #e8941a);
+            color: #1A1A1A;
+        }
+
+        .popup-btn.primary:hover {
+            background: linear-gradient(45deg, #e8941a, #d7851a);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 166, 35, 0.4);
+        }
+
+        .popup-btn.secondary {
+            background: linear-gradient(45deg, #666, #555);
+            color: #E0E0E0;
+        }
+
+        .popup-btn.secondary:hover {
+            background: linear-gradient(45deg, #777, #666);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 102, 102, 0.4);
+        }
+
+        .download-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .thank-you {
+            padding: 40px 30px !important;
+        }
+
+        .thank-you-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        .thank-you h3 {
+            color: #f5a623;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .thank-you p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
         /* Install Box Styles */
         .install-box {
             pointer-events: auto !important;
@@ -498,12 +799,44 @@
         .faq__area {
             margin: 30px 0; /* Adjusted margin for better centering */
         }
-        @media (max-width: 991px) {
-  .install-box {
-    display: none !important;
-  }
-}
 
+        @media (max-width: 991px) {
+            .install-box {
+                display: none !important;
+            }
+            
+            .download-popup {
+                width: 95%;
+                margin: 20px;
+            }
+            
+            .popup-content {
+                padding: 20px;
+            }
+            
+            .download-options {
+                gap: 10px;
+            }
+            
+            .popup-btn {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .popup-header {
+                padding: 15px;
+            }
+            
+            .popup-header h3 {
+                font-size: 18px;
+            }
+            
+            .popup-content {
+                padding: 15px;
+            }
+        }
     </style>
 
     <!-- JavaScript for FAQ Toggle -->
