@@ -85,11 +85,51 @@
             overlay.classList.remove('show');
             setTimeout(() => {
                 overlay.style.display = 'none';
-                // Reset form
-                document.getElementById('inviteInput').value = '';
-                document.getElementById('inviteStep').style.display = 'block';
-                document.getElementById('downloadStep').style.display = 'none';
+                // Reset form after popup is completely hidden
+                resetPopupToInitialState();
             }, 300);
+        }
+
+        function resetPopupToInitialState() {
+            setTimeout(() => {
+                const inviteStep = document.getElementById('inviteStep');
+                const downloadStep = document.getElementById('downloadStep');
+                const thankYouStep = document.getElementById('thankYouStep');
+                
+                // Clear input
+                document.getElementById('inviteInput').value = '';
+                
+                // Reset all steps to initial state
+                inviteStep.style.display = 'block';
+                inviteStep.style.opacity = '1';
+                inviteStep.style.transform = 'translateX(0)';
+                
+                downloadStep.style.display = 'none';
+                downloadStep.style.opacity = '1';
+                downloadStep.style.transform = 'translateX(0)';
+                
+                thankYouStep.style.display = 'none';
+                thankYouStep.style.opacity = '1';
+                thankYouStep.style.transform = 'scale(1)';
+                
+                // Reset download buttons to original state
+                resetDownloadButtons();
+            }, 50);
+        }
+
+        function resetDownloadButtons() {
+            const newVersionBtn = document.getElementById('newVersionBtn');
+            const oldVersionBtn = document.getElementById('oldVersionBtn');
+            
+            // Reset new version button
+            newVersionBtn.disabled = false;
+            newVersionBtn.style.opacity = '1';
+            newVersionBtn.innerHTML = '🆕 Download New Version';
+            
+            // Reset old version button
+            oldVersionBtn.disabled = false;
+            oldVersionBtn.style.opacity = '1';
+            oldVersionBtn.innerHTML = '📦 Download Old Version';
         }
 
         function proceedToDownload() {
@@ -102,27 +142,58 @@
             // Store invite code for later use
             window.currentInviteCode = inviteCode;
             
-            // Hide invite step and show download options
-            document.getElementById('inviteStep').style.display = 'none';
-            document.getElementById('downloadStep').style.display = 'block';
+            // Animate transition from invite step to download step
+            const inviteStep = document.getElementById('inviteStep');
+            const downloadStep = document.getElementById('downloadStep');
+            
+            // Fade out invite step
+            inviteStep.style.opacity = '0';
+            inviteStep.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                inviteStep.style.display = 'none';
+                downloadStep.style.display = 'block';
+                downloadStep.style.opacity = '0';
+                downloadStep.style.transform = 'translateX(20px)';
+                
+                // Fade in download step
+                setTimeout(() => {
+                    downloadStep.style.opacity = '1';
+                    downloadStep.style.transform = 'translateX(0)';
+                }, 50);
+            }, 300);
         }
 
-        function downloadVersion(version, downloadUrl) {
+        function downloadVersion(version, downloadUrl, buttonElement) {
             const inviteCode = window.currentInviteCode || 'Unknown';
             
-            // Start download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = '';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Send webhook data
-            sendDownloadWebhook(version, inviteCode);
+            // Disable all buttons and show loading on clicked one
+            const newVersionBtn = document.getElementById('newVersionBtn');
+            const oldVersionBtn = document.getElementById('oldVersionBtn');
             
-            // Show thank you message
-            showThankYouMessage();
+            newVersionBtn.disabled = true;
+            oldVersionBtn.disabled = true;
+            
+            // Show loading on clicked button
+            buttonElement.innerHTML = '<span class="loading-spinner"></span> Downloading...';
+            buttonElement.style.opacity = '0.8';
+            
+            // Simulate download preparation time
+            setTimeout(() => {
+                // Start actual download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Send webhook data
+                sendDownloadWebhook(version, inviteCode);
+                
+                // Show thank you message with confetti
+                showThankYouMessage();
+            }, 2000); // 2 second loading time
         }
 
         function sendDownloadWebhook(version, inviteCode) {
@@ -174,16 +245,66 @@
         }
 
         function showThankYouMessage() {
-            document.getElementById('downloadStep').style.display = 'none';
-            document.getElementById('thankYouStep').style.display = 'block';
+            const downloadStep = document.getElementById('downloadStep');
+            const thankYouStep = document.getElementById('thankYouStep');
             
-            // Auto close after 3 seconds
+            // Animate transition from download step to thank you step
+            downloadStep.style.opacity = '0';
+            downloadStep.style.transform = 'translateY(-20px)';
+            
+            setTimeout(() => {
+                downloadStep.style.display = 'none';
+                thankYouStep.style.display = 'block';
+                thankYouStep.style.opacity = '0';
+                thankYouStep.style.transform = 'scale(0.8)';
+                
+                // Fade in thank you step with scale animation
+                setTimeout(() => {
+                    thankYouStep.style.opacity = '1';
+                    thankYouStep.style.transform = 'scale(1)';
+                    
+                    // Trigger confetti after animation completes
+                    setTimeout(() => {
+                        createConfetti();
+                    }, 200);
+                }, 50);
+            }, 300);
+            
+            // Auto close after 4 seconds (increased to enjoy confetti)
             setTimeout(() => {
                 closePopup();
-                // Reset to invite step for next time
-                document.getElementById('thankYouStep').style.display = 'none';
-                document.getElementById('inviteStep').style.display = 'block';
+            }, 4000);
+        }
+
+        // Confetti Animation Function
+        function createConfetti() {
+            const confettiContainer = document.createElement('div');
+            confettiContainer.className = 'confetti-container';
+            document.body.appendChild(confettiContainer);
+
+            const colors = ['#f5a623', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'];
+            const confettiCount = 50;
+
+            for (let i = 0; i < confettiCount; i++) {
+                createConfettiPiece(confettiContainer, colors[Math.floor(Math.random() * colors.length)]);
+            }
+
+            // Remove confetti after animation
+            setTimeout(() => {
+                if (confettiContainer.parentNode) {
+                    confettiContainer.parentNode.removeChild(confettiContainer);
+                }
             }, 3000);
+        }
+
+        function createConfettiPiece(container, color) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti-piece';
+            confetti.style.backgroundColor = color;
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.animationDelay = Math.random() * 2 + 's';
+            confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            container.appendChild(confetti);
         }
 
         function getOperatingSystem() {
@@ -236,10 +357,10 @@
                 <div class="popup-content">
                     <p>Select which version you'd like to download:</p>
                     <div class="download-options">
-                        <button class="popup-btn primary" onclick="downloadVersion('new', 'https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1')">
+                        <button id="newVersionBtn" class="popup-btn primary" onclick="downloadVersion('new', 'https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1', this)">
                             🆕 Download New Version
                         </button>
-                        <button class="popup-btn secondary" onclick="downloadVersion('old', 'https://www.dropbox.com/scl/fi/5uyyh5z5u3hbub20p1ugb/Toravox_1.0.8.zip?rlkey=7pmjfsj7l9c910r0i9lz0omxq&st=uuxtpy6n&dl=1')">
+                        <button id="oldVersionBtn" class="popup-btn secondary" onclick="downloadVersion('old', 'https://www.dropbox.com/scl/fi/49fffbuw4bhfkvjix718p/Toravox-Setup-1.0.0.zip?rlkey=sig8lbheda3lafnkehwdfehsq&st=cjbdgfl2&dl=1', this)">
                             📦 Download Old Version
                         </button>
                     </div>
@@ -591,6 +712,10 @@
             transform: scale(1);
         }
 
+        .popup-step {
+            transition: all 0.3s ease;
+        }
+
         .popup-header {
             background: #2A2A2A;
             padding: 20px;
@@ -690,10 +815,78 @@
             color: #E0E0E0;
         }
 
-        .popup-btn.secondary:hover {
-            background: linear-gradient(45deg, #777, #666);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 102, 102, 0.4);
+        .popup-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.8 !important;
+        }
+
+        .popup-btn:disabled:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Confetti Styles */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10001;
+            overflow: hidden;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            opacity: 0.8;
+            animation: confetti-fall linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Different confetti shapes */
+        .confetti-piece:nth-child(odd) {
+            border-radius: 50%;
+        }
+
+        .confetti-piece:nth-child(even) {
+            transform: rotate(45deg);
+        }
+
+        .confetti-piece:nth-child(3n) {
+            width: 6px;
+            height: 12px;
+            border-radius: 3px;
         }
 
         .download-options {
